@@ -6,7 +6,7 @@ import {
   DirectionsRenderer,
   InfoWindow,
 } from '@react-google-maps/api';
-import { MapPin, Navigation, Clock, AlertTriangle, LayoutDashboard, LogOut, User as UserIcon, Settings, Bell } from 'lucide-react';
+import { MapPin, Navigation, Clock, AlertTriangle, LayoutDashboard, LogOut, User as UserIcon, Settings, Bell, X } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut, User } from 'firebase/auth';
 
@@ -23,7 +23,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: apiKey,
-    libraries, // Use the constant here
+    libraries,
   });
 
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -35,6 +35,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [showInfoWindow, setShowInfoWindow] = useState<any | null>(null);
   const [directionsKey, setDirectionsKey] = useState(0);
+  const [hospitalFetchStatus, setHospitalFetchStatus] = useState<'loading' | 'success' | 'error' | 'empty'>('loading');
 
   const mapContainerStyle = {
     width: '100%',
@@ -93,41 +94,45 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
   }, [isTracking, getCurrentLocation]);
 
-  // Rewritten to use the new, non-deprecated Places API
-  const fetchNearbyHospitals = useCallback(async () => {
-    if (!isLoaded || !currentLocation || !window.google) return;
-  
-    try {
-      const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
-  
-      const request: google.maps.places.SearchNearbyRequest = {
-        location: currentLocation,
-        radius: 15000,
-        includedTypes: ['hospital'],
-        // The new API uses rankPreference instead of a simple keyword for this type of search
-        rankPreference: google.maps.places.RankPreference.DISTANCE,
-      };
-  
-      const { places } = await Place.searchNearby(request);
-  
-      if (places.length) {
-        const hospitals = places
-          .filter(place => place.location) // Ensure place has a location
-          .map((place) => ({
-            id: place.id,
-            name: place.displayName,
-            lat: place.location!.lat(),
-            lng: place.location!.lng(),
-            address: place.formattedAddress || 'Address not available',
-          }));
-        setNearbyHospitals(hospitals);
-      } else {
-        setNearbyHospitals([]);
-      }
-    } catch (error) {
-      console.error("Error fetching nearby hospitals with new API:", error);
-      setNearbyHospitals([]);
+  // Reverted to the stable PlacesService to fix loading errors
+  const fetchNearbyHospitals = useCallback(() => {
+    if (!isLoaded || !currentLocation || !window.google || !window.google.maps.places) {
+        return;
     }
+    
+    setHospitalFetchStatus('loading');
+    const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+    
+    const request: google.maps.places.PlaceSearchRequest = {
+      location: currentLocation,
+      radius: 10000, // Corrected radius
+      type: 'hospital',
+      keyword: 'multi specialty hospital',
+    };
+
+    service.nearbySearch(request, (results, status) => {
+      if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
+        const hospitals = results.map((place) => ({
+          id: place.place_id,
+          name: place.name,
+          lat: place.geometry?.location?.lat(),
+          lng: place.geometry?.location?.lng(),
+          address: place.vicinity || 'Address not available',
+        })).filter(h => h.id && h.lat && h.lng); // Ensure hospitals have valid data
+        
+        if (hospitals.length > 0) {
+            setNearbyHospitals(hospitals);
+            setHospitalFetchStatus('success');
+        } else {
+            setNearbyHospitals([]);
+            setHospitalFetchStatus('empty');
+        }
+      } else {
+        console.error(`Places search failed with status: ${status}`);
+        setNearbyHospitals([]);
+        setHospitalFetchStatus('error');
+      }
+    });
   }, [isLoaded, currentLocation]);
 
   useEffect(() => {
@@ -137,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   }, [currentLocation, fetchNearbyHospitals]);
 
   const calculateRoute = useCallback((hospital: any) => {
-    if (!isLoaded || !currentLocation || !window.google) return;
+    if (!isLoaded || !currentLocation || !window.google.maps) return;
     setDirectionsKey((prevKey) => prevKey + 1);
     const directionsService = new window.google.maps.DirectionsService();
     directionsService.route(
@@ -188,7 +193,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   return (
     <div className="h-screen flex bg-gray-100 font-sans">
-      {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md flex flex-col flex-shrink-0">
         <div className="p-6 text-2xl font-bold text-blue-600 border-b">
           VitalRoute
@@ -215,9 +219,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 p-6 flex flex-col">
-        {/* Header */}
+      <main className="flex-1 p-6 flex flex-col h-full overflow-hidden">
         <header className="flex items-center justify-between mb-6 flex-shrink-0">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
@@ -241,8 +243,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         </header>
 
-        {/* Status Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 flex-shrink-0">
+          {/* Status Cards */}
           <div className="bg-white rounded-xl shadow p-6 flex items-center gap-4">
              <MapPin className="w-8 h-8 text-blue-500 flex-shrink-0" />
             <div>
@@ -287,8 +289,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         )}
 
-        {/* Map and Hospitals - Flex-grow makes this section fill remaining space */}
-        <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
           <div className="lg:col-span-2 bg-white rounded-xl shadow p-4 h-full">
             <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={13} options={mapOptions}>
               {currentLocation && <Marker position={currentLocation} icon={ambulanceIcon} title="Ambulance Location" />}
@@ -325,12 +326,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           <div className="lg:col-span-1 bg-white rounded-xl shadow p-4 h-full flex flex-col">
             <div className="flex justify-between items-center mb-4 px-2 flex-shrink-0">
                  <h2 className="text-xl font-semibold text-gray-800">Nearby Hospitals</h2>
-                 <button onClick={toggleTracking} className={`px-4 py-2 text-sm rounded-lg font-semibold transition-all ${isTracking ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                    {isTracking ? 'Stop Tracking' : 'Start Tracking'}
-                 </button>
+                 <div className="flex items-center gap-2">
+                    <button onClick={toggleTracking} className={`px-3 py-1.5 text-xs rounded-lg font-semibold transition-all ${isTracking ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                        {isTracking ? 'Stop Tracking' : 'Start Tracking'}
+                    </button>
+                    {directions && (
+                        <button onClick={clearRoute} className="p-1.5 bg-gray-200 text-gray-600 hover:bg-gray-300 rounded-lg" title="Clear Route">
+                            <X size={16} />
+                        </button>
+                    )}
+                 </div>
             </div>
             <div className="flex-1 overflow-y-auto pr-2">
-              {nearbyHospitals.length > 0 ? (
+              {hospitalFetchStatus === 'loading' && <p className="text-gray-500 px-2">Searching for hospitals...</p>}
+              {hospitalFetchStatus === 'empty' && <p className="text-gray-500 px-2">No hospitals found nearby.</p>}
+              {hospitalFetchStatus === 'error' && <p className="text-red-500 px-2">Could not fetch hospitals. Check console.</p>}
+              {hospitalFetchStatus === 'success' && (
                 nearbyHospitals.map((hospital) => (
                   <div
                     key={hospital.id}
@@ -341,8 +352,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     <p className="text-xs text-gray-600">{hospital.address}</p>
                   </div>
                 ))
-              ) : (
-                <p className="text-gray-500 px-2">Searching for hospitals...</p>
               )}
             </div>
           </div>
