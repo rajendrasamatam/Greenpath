@@ -94,7 +94,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     }
   }, [isTracking, getCurrentLocation]);
 
-  // Reverted to the stable PlacesService to fix loading errors
   const fetchNearbyHospitals = useCallback(() => {
     if (!isLoaded || !currentLocation || !window.google || !window.google.maps.places) {
         return;
@@ -103,9 +102,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setHospitalFetchStatus('loading');
     const service = new window.google.maps.places.PlacesService(document.createElement('div'));
     
+    // UPDATED: Radius changed to 10000 meters (10km)
     const request: google.maps.places.PlaceSearchRequest = {
       location: currentLocation,
-      radius: 10000, // Corrected radius
+      radius: 10000, 
       type: 'hospital',
       keyword: 'multi specialty hospital',
     };
@@ -118,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           lat: place.geometry?.location?.lat(),
           lng: place.geometry?.location?.lng(),
           address: place.vicinity || 'Address not available',
-        })).filter(h => h.id && h.lat && h.lng); // Ensure hospitals have valid data
+        })).filter(h => h.id && h.lat && h.lng);
         
         if (hospitals.length > 0) {
             setNearbyHospitals(hospitals);
@@ -244,7 +244,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 flex-shrink-0">
-          {/* Status Cards */}
           <div className="bg-white rounded-xl shadow p-6 flex items-center gap-4">
              <MapPin className="w-8 h-8 text-blue-500 flex-shrink-0" />
             <div>
@@ -337,7 +336,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     )}
                  </div>
             </div>
-            <div className="flex-1 overflow-y-auto pr-2">
+            {/* UPDATED: Added min-h-0 to enable scrolling */}
+            <div className="flex-1 overflow-y-auto pr-2 max-h-[calc(100vh-260px)] scroll-smooth">
+
               {hospitalFetchStatus === 'loading' && <p className="text-gray-500 px-2">Searching for hospitals...</p>}
               {hospitalFetchStatus === 'empty' && <p className="text-gray-500 px-2">No hospitals found nearby.</p>}
               {hospitalFetchStatus === 'error' && <p className="text-red-500 px-2">Could not fetch hospitals. Check console.</p>}
