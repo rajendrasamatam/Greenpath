@@ -6,7 +6,7 @@ import {
   DirectionsRenderer,
   InfoWindow,
 } from '@react-google-maps/api';
-import { MapPin, Navigation, Clock, AlertTriangle, LayoutDashboard, LogOut, User as UserIcon, Settings, Bell, X } from 'lucide-react';
+import { MapPin, Navigation, Clock, AlertTriangle, LayoutDashboard, LogOut, User as UserIcon, Settings, Bell, X, Menu } from 'lucide-react';
 import { auth } from '../firebase';
 import { signOut, User } from 'firebase/auth';
 
@@ -36,6 +36,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [showInfoWindow, setShowInfoWindow] = useState<any | null>(null);
   const [directionsKey, setDirectionsKey] = useState(0);
   const [hospitalFetchStatus, setHospitalFetchStatus] = useState<'loading' | 'success' | 'error' | 'empty'>('loading');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const mapContainerStyle = {
     width: '100%',
@@ -102,7 +103,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
     setHospitalFetchStatus('loading');
     const service = new window.google.maps.places.PlacesService(document.createElement('div'));
     
-    // UPDATED: Radius changed to 10000 meters (10km)
     const request: google.maps.places.PlaceSearchRequest = {
       location: currentLocation,
       radius: 10000, 
@@ -193,9 +193,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
   return (
     <div className="h-screen flex bg-gray-100 font-sans">
-      <aside className="w-64 bg-white shadow-md flex flex-col flex-shrink-0">
-        <div className="p-6 text-2xl font-bold text-blue-600 border-b">
+      <aside className={`w-64 bg-white shadow-md flex flex-col flex-shrink-0 absolute lg:relative lg:translate-x-0 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 text-2xl font-bold text-blue-600 border-b flex justify-between items-center lg:justify-start">
           VitalRoute
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden">
+              <X size={24} />
+          </button>
         </div>
         <nav className="flex-1 p-4 space-y-2">
           <a href="#" className="flex items-center gap-3 px-4 py-2 text-gray-700 bg-blue-100 rounded-lg font-semibold">
@@ -221,9 +224,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
 
       <main className="flex-1 p-6 flex flex-col h-full overflow-hidden">
         <header className="flex items-center justify-between mb-6 flex-shrink-0">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-            <p className="text-gray-600">Real-time ambulance tracking and hospital routing</p>
+          <div className="flex items-center gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden">
+                <Menu size={24} />
+            </button>
+            <div>
+                <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+                <p className="text-gray-600 text-sm md:text-base">Real-time ambulance tracking and hospital routing</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
              <Bell size={24} className="text-gray-500" />
@@ -235,7 +243,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   {user.email?.charAt(0).toUpperCase()}
                 </div>
               )}
-              <div>
+              <div className="hidden md:block">
                 <p className="font-semibold text-gray-800">{user.displayName || user.email}</p>
                 <p className="text-sm text-gray-500">Driver</p>
               </div>
@@ -258,7 +266,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
             <div>
               <h3 className="font-semibold text-gray-500">Route</h3>
               <p className="text-lg font-bold text-gray-800 truncate">
-                {selectedHospital ? `To Hospital` : 'None'}
+                {selectedHospital ? `To ${selectedHospital.name}` : 'None'}
               </p>
             </div>
           </div>
@@ -288,8 +296,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
           </div>
         )}
 
-        <div className="flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
-          <div className="lg:col-span-2 bg-white rounded-xl shadow p-4 h-full">
+        <div className="flex-grow grid grid-cols-1 gap-6 lg:grid-cols-3 min-h-0">
+
+          <div className="lg:col-span-2 bg-white rounded-xl shadow p-4 h-full min-h-[400px] lg:min-h-0">
             <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={13} options={mapOptions}>
               {currentLocation && <Marker position={currentLocation} icon={ambulanceIcon} title="Ambulance Location" />}
               {nearbyHospitals.map((hospital) => (
@@ -336,9 +345,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                     )}
                  </div>
             </div>
-            {/* UPDATED: Added min-h-0 to enable scrolling */}
             <div className="flex-1 overflow-y-auto pr-2 max-h-[calc(100vh-260px)] scroll-smooth">
-
               {hospitalFetchStatus === 'loading' && <p className="text-gray-500 px-2">Searching for hospitals...</p>}
               {hospitalFetchStatus === 'empty' && <p className="text-gray-500 px-2">No hospitals found nearby.</p>}
               {hospitalFetchStatus === 'error' && <p className="text-red-500 px-2">Could not fetch hospitals. Check console.</p>}
