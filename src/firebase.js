@@ -1,7 +1,8 @@
-// Firebase configuration and initialization
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
+// Your web app's Firebase configuration using environment variables
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_REACT_APP_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -14,7 +15,11 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore
+// Initialize and export Firebase Authentication
+export const auth = getAuth(app);
+
+// Initialize and export Cloud Firestore
 export const db = getFirestore(app);
 
-export default app;
+// Initialize and export Google Auth Provider
+export const provider = new GoogleAuthProvider();
