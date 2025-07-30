@@ -1,0 +1,74 @@
+/* LandingPage.css
+  This file contains the custom CSS for the SparkX landing page.
+  It should be imported into your LandingPage.jsx component.
+  Note: This page also relies heavily on Tailwind CSS classes in the JSX file.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0a0a0a;
+    color: #e5e7eb;/* LandingPage.css
+  This file contains the custom CSS for the SparkX landing page.
+  It should be imported into your LandingPage.jsx component.
+  Note: This page also relies heavily on Tailwind CSS classes in the JSX file.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0a0a0a;
+    color: #e5e7eb;
+}
+
+.gradient-text {
+    background: linear-gradient(90deg, #3b82f6, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+}
+
+.hero-glow {
+    box-shadow: 0 0 80px 20px rgba(59, 130, 246, 0.2), 0 0 100px 30px rgba(239, 68, 68, 0.2);
+}
+
+.feature-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+}
+
+.gradient-text {
+    background: linear-gradient(90deg, #3b82f6, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+}
+
+.hero-glow {
+    box-shadow: 0 0 80px 20px rgba(59, 130, 246, 0.2), 0 0 100px 30px rgba(239, 68, 68, 0.2);
+}
+
+.feature-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    border-color: rgba(59, 130, 246, 0.5);
+}

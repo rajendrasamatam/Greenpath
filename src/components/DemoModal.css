@@ -1,0 +1,161 @@
+/* Styling for the modal overlay and content */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: #1a1a1a;
+    padding: 2rem;
+    border-radius: 1rem;
+    width: 90%;
+    max-width: 600px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.modal-close-button {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+/* Styling for the animation container */
+.demo-container {
+    position: relative;
+    height: 250px;
+    background-color: #334155; /* slate-700 */
+    border-radius: 0.5rem;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.road {
+    position: absolute;
+    bottom: 40%;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background-color: #475569; /* slate-600 */
+    border-top: 2px dashed #94a3b8; /* slate-400 */
+    border-bottom: 2px dashed #94a3b8; /* slate-400 */
+}
+
+/* --- Corrected Ambulance Animation --- */
+.ambulance {
+    position: absolute;
+    font-size: 2.5rem;
+    bottom: calc(40% + 5px); /* Position slightly above the road */
+    z-index: 10;
+    right: -15%; /* Start off-screen right */
+    left: auto; /* Ensure left property doesn't interfere */
+    transform: translateX(50%); /* Only translate to center the emoji */
+    transition: right 4.5s linear; /* Transition the 'right' property */
+}
+
+/* Step 1: Ambulance starts moving towards the center */
+.ambulance.moving {
+    right: 50%; /* Moves to the center from the right */
+}
+
+/* Step 4: Ambulance passes the center and continues off-screen to the left */
+.ambulance.passed {
+    right: 115%; /* Moves off-screen to the left */
+}
+
+
+/* Traffic light styling */
+.traffic-light-pole {
+    position: absolute;
+    bottom: 50%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 50px;
+    background-color: #1e293b; /* slate-800 */
+}
+
+.traffic-light {
+    position: absolute;
+    top: -65px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #0f172a; /* slate-900 */
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.light {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #4b5563; /* gray-600 */
+    opacity: 0.3;
+    transition: all 0.3s ease;
+}
+
+.light.red.active {
+    background-color: #ef4444; /* red-500 */
+    opacity: 1;
+    box-shadow: 0 0 10px #ef4444;
+}
+
+.light.green.active {
+    background-color: #22c55e; /* green-500 */
+    opacity: 1;
+    box-shadow: 0 0 10px #22c55e;
+}
+
+/* Geofence styling */
+.geofence {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px; /* Size of the geofence */
+    height: 300px;
+    border: 3px dashed #3b82f6; /* blue-500 */
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+}
+
+/* The geofence should be active when the ambulance is in the "moving" state but not yet "passed" */
+/* This directly ties its visibility to the ambulance's journey through the center */
+.geofence.active { /* This class is applied by React based on step 2, 3, 4 */
+    opacity: 0.7;
+}
+
+/* Text description */
+.demo-text {
+    position: absolute;
+    bottom: 1rem;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 0.5rem 0;
+}

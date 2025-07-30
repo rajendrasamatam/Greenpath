@@ -1,3 +1,44 @@
+/* src/index.css */
+/* Import Tailwind's base styles, components, and utilities. */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom styles for the SparkX Landing Page are now included here 
+  to simplify the project setup. You no longer need a separate LandingPage.css file.
+*/
+
+body {
+    /* Set the default font and dark background color for the entire page. */
+    font-family: 'Inter', sans-serif;
+    background-color: #0a0a0a;
+    color: #e5e7eb;
+}
+
+.gradient-text {
+    /* Creates a gradient text effect for headings. */
+    background: linear-gradient(90deg, #3b82f6, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-fill-color: transparent;
+}
+
+.hero-glow {
+    /* Adds a soft, colored glow effect behind the hero section content. */
+    box-shadow: 0 0 80px 20px rgba(59, 130, 246, 0.2), 0 0 100px 30px rgba(239, 68, 68, 0.2);
+}
+
+.feature-card {
+    /* Styles for the feature cards, giving them a semi-transparent, blurred background. */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    /* Adds a hover effect to the feature cards. */
+    transform: translateY(-5px);
+    border-color: rgba(59, 130, 246, 0.5);
+}
