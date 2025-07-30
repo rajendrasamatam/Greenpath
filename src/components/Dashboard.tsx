@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, Navigation, Clock, LogOut, User as UserIcon, Settings, Bell, ChevronDown, ChevronUp, Award } from 'lucide-react';
+import { useLoadScript } from '@react-google-maps/api'; // Import useLoadScript
 
 import { auth } from '../firebase';
 import { signOut, User } from 'firebase/auth';
@@ -9,19 +10,27 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
+// Define libraries array outside the component to prevent re-renders
+const libraries: ("places")[] = ['places']; // 'places' library is needed for PlacesService
+
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
+  // Access API key from environment variables (assuming it's set up in your project)
+  // In a real project, this would be `import.meta.env.VITE_REACT_APP_Maps_API_KEY;`
+  // For Canvas, we'll use the provided key directly.
+  const apiKey = "AIzaSyB7eG4ZV8A2dNItIjFkRyGUact3IstWwdY"; // Directly using the provided key
+
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: apiKey,
+    libraries,
+  });
+
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
-  const [nearbyMultiSpecialtyHospitals, setNearbyMultiSpecialtyHospitals] = useState([
-    { id: 'hosp1', name: 'Apollo Hospitals', address: 'Jubilee Hills, Hyderabad', lat: 17.433, lng: 78.401 },
-    { id: 'hosp2', name: 'MaxCure Hospitals', address: 'Madhapur, Hyderabad', lat: 17.447, lng: 78.388 },
-    { id: 'hosp3', name: 'Continental Hospital', address: 'Gachibowli, Hyderabad', lat: 17.441, lng: 78.375 },
-    { id: 'hosp4', name: 'Medicover Hospitals', address: 'Hitec City, Hyderabad', lat: 17.456, lng: 78.383 },
-    { id: 'hosp5', name: 'Care Hospitals', address: 'Banjara Hills, Hyderabad', lat: 17.418, lng: 78.449 },
-    { id: 'hosp6', name: 'Yashoda Hospitals', address: 'Secunderabad, Hyderabad', lat: 17.438, lng: 78.502 },
-  ]);
+  const [nearbyMultiSpecialtyHospitals, setNearbyMultiSpecialtyHospitals] = useState<any[]>([]);
   const [selectedHospital, setSelectedHospital] = useState<any | null>(null); // To highlight active route
+  const [locationError, setLocationError] = useState<string | null>(null); // State for geolocation errors
+  const [hospitalFetchStatus, setHospitalFetchStatus] = useState<'loading' | 'success' | 'error' | 'empty'>('loading'); // Status for hospital fetching
 
   const handleSignOut = async () => {
     try {
@@ -33,25 +42,73 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   };
   
   const getCurrentLocation = useCallback(() => {
-    // In a real app, this would use navigator.geolocation.getCurrentPosition
-    // For now, using dummy locations.
-    const dummyLocations = [
-      { lat: 17.385044, lng: 78.486671 }, // Hyderabad city center
-      { lat: 17.390, lng: 78.490 },
-      { lat: 17.380, lng: 78.480 },
-    ];
-    const randomLocation = dummyLocations[Math.floor(Math.random() * dummyLocations.length)];
-    
-    setCurrentLocation(randomLocation);
-    setLastUpdate(new Date());
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setCurrentLocation(location);
+          setLastUpdate(new Date());
+          setLocationError(null); // Clear any previous errors
+        },
+        (error) => {
+          let errorMessage = `Location error: ${error.message}`;
+          if (error.code === error.PERMISSION_DENIED) {
+            errorMessage = "Location access denied. Please enable location services in your browser settings.";
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            errorMessage = "Location information is unavailable.";
+          } else if (error.code === error.TIMEOUT) {
+            errorMessage = "The request to get user location timed out.";
+          }
+          setLocationError(errorMessage);
+          console.error("Geolocation error:", error);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 } // High accuracy, 10s timeout, no cached position
+      );
+    } else {
+      setLocationError("Geolocation is not supported by your browser.");
+    }
   }, []);
 
+  // Effect for initial location fetch and continuous updates
   useEffect(() => {
-    getCurrentLocation();
-    // Simulate continuous tracking for demo purposes
-    const interval = setInterval(getCurrentLocation, 30000); // Update every 30 seconds
-    return () => clearInterval(interval);
-  }, [getCurrentLocation]);
+    getCurrentLocation(); // Fetch location immediately on component mount
+
+    // Set up continuous tracking using watchPosition
+    let watchId: number | null = null;
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setCurrentLocation(location);
+          setLastUpdate(new Date());
+          setLocationError(null);
+        },
+        (error) => {
+          let errorMessage = `Location tracking error: ${error.message}`;
+          if (error.code === error.PERMISSION_DENIED) {
+            errorMessage = "Location access denied for continuous tracking.";
+          }
+          setLocationError(errorMessage);
+          console.error("Geolocation watch error:", error);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    // Cleanup function: clear watchPosition when component unmounts
+    return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [getCurrentLocation]); // Depend on getCurrentLocation to re-run if it changes (though useCallback prevents this)
+
 
   const toggleUserDropdown = () => {
     setIsUserDropdownOpen((prev) => !prev);
@@ -71,6 +128,58 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     };
   }, []);
 
+  // Function to fetch nearby hospitals using Google Places API
+  const fetchNearbyHospitals = useCallback(() => {
+    // Ensure Google Maps API and Places library are loaded, and we have a current location
+    if (!isLoaded || !currentLocation || !window.google || !window.google.maps.places) {
+      setHospitalFetchStatus('loading'); // Still loading if API not ready
+      return;
+    }
+    
+    setHospitalFetchStatus('loading');
+    // Create a dummy div element to pass to PlacesService constructor
+    const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+    
+    const request: google.maps.places.PlaceSearchRequest = {
+      location: currentLocation,
+      radius: 15000, // Search within 15 km radius (15000 meters)
+      type: 'hospital', // Filter by hospitals
+      keyword: 'multi specialty hospital', // Refine search for multi specialty
+    };
+
+    service.nearbySearch(request, (results, status) => {
+      if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
+        const hospitals = results.map((place) => ({
+          id: place.place_id,
+          name: place.name,
+          lat: place.geometry?.location?.lat(),
+          lng: place.geometry?.location?.lng(),
+          address: place.vicinity || 'Address not available',
+        })).filter(h => h.id && h.lat && h.lng); // Filter out results without valid ID or coordinates
+        
+        if (hospitals.length > 0) {
+            setNearbyMultiSpecialtyHospitals(hospitals);
+            setHospitalFetchStatus('success');
+        } else {
+            setNearbyMultiSpecialtyHospitals([]);
+            setHospitalFetchStatus('empty');
+        }
+      } else {
+        console.error(`Google Places search failed with status: ${status}`);
+        setNearbyMultiSpecialtyHospitals([]);
+        setHospitalFetchStatus('error');
+      }
+    });
+  }, [isLoaded, currentLocation]); // Re-run when API is loaded or location changes
+
+  // Effect to trigger hospital fetch when location is available and API is loaded
+  useEffect(() => {
+    if (currentLocation && isLoaded) {
+      fetchNearbyHospitals();
+    }
+  }, [currentLocation, isLoaded, fetchNearbyHospitals]);
+
+
   // Function to activate route and open Google Maps for navigation
   const handleNavigateToHospital = (hospital: any) => {
     if (currentLocation && hospital.lat && hospital.lng) {
@@ -86,6 +195,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       // Optionally, provide user feedback (e.g., a toast notification)
     }
   };
+
+  // Display loading or error messages for Google Maps API
+  if (loadError) return <div className="text-red-500 p-4 bg-black min-h-screen flex items-center justify-center">Error loading maps services. Please check your API key and network connection.</div>;
+  if (!isLoaded) return <div className="flex items-center justify-center min-h-screen bg-black text-white">Loading map services...</div>;
 
   return (
     <div className="min-h-screen flex flex-col bg-black font-sans text-white relative overflow-hidden">
@@ -179,8 +292,22 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <div className="flex justify-between items-center mb-4 flex-shrink-0">
                 <h2 className="text-xl font-semibold text-white">Nearby Multi Specialty Hospitals</h2>
           </div>
+          {locationError && (
+            <div className="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded-lg mb-4">
+              <strong>Location Error:</strong> {locationError}
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto pr-2 max-h-[calc(100vh-250px)] scroll-smooth"> {/* Adjusted max-height */}
-            {nearbyMultiSpecialtyHospitals.length > 0 ? (
+            {hospitalFetchStatus === 'loading' && (
+              <p className="text-gray-500 px-2">Searching for hospitals within 15km...</p>
+            )}
+            {hospitalFetchStatus === 'empty' && (
+              <p className="text-gray-500 px-2">No multi specialty hospitals found within 15km.</p>
+            )}
+            {hospitalFetchStatus === 'error' && (
+              <p className="text-red-500 px-2">Error fetching hospitals. Please try again.</p>
+            )}
+            {hospitalFetchStatus === 'success' && nearbyMultiSpecialtyHospitals.length > 0 ? (
               nearbyMultiSpecialtyHospitals.map((hospital) => (
                 <div
                   key={hospital.id}
@@ -199,7 +326,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                 </div>
               ))
             ) : (
-              <p className="text-gray-500 px-2">No nearby multi specialty hospitals found.</p>
+              hospitalFetchStatus === 'success' && <p className="text-gray-500 px-2">No nearby multi specialty hospitals found.</p>
             )}
           </div>
         </div>
