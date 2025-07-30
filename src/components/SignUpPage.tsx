@@ -8,11 +8,14 @@ import { Loader2, Image as ImageIcon, User as UserIcon } from 'lucide-react'; //
 declare const __app_id: string;
 
 // Declare the ImportMetaEnv interface for TypeScript to recognize import.meta.env
+// This tells TypeScript what properties to expect on import.meta.env
 interface ImportMetaEnv {
   readonly VITE_IMGBB_API_KEY: string;
   // Add other VITE_ variables here if you use them in this file
 }
 
+// Declare the ImportMeta interface to extend the global ImportMeta
+// This is crucial for TypeScript to understand import.meta.env
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }

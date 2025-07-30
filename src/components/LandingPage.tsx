@@ -23,7 +23,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin }) => {
         {/* Header */}
         <header className="absolute top-0 left-0 right-0 z-10 py-6 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-white">🚨 SparkX</h1>
+            <h1 className="text-2xl font-bold text-white">🚨 Vitalroute</h1>
             {/* This button now calls the onNavigateToLogin function when clicked */}
             <button 
               onClick={onNavigateToLogin}
@@ -43,7 +43,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin }) => {
                 Paving the Way for <span className="gradient-text">Life-Savers</span>
               </h2>
               <p className="mt-6 max-w-2xl mx-auto text-lg md:text-xl text-gray-300">
-                SparkX is a smart traffic management system that reduces ambulance response time by dynamically controlling traffic lights with geofencing and live GPS tracking.
+                Vitalroute is a smart traffic management system that reduces ambulance response time by dynamically controlling traffic lights with geofencing and live GPS tracking.
               </p>
               <div className="mt-10 flex justify-center gap-4">
                 {/* This button now uses the handleScroll function for smooth scrolling */}
@@ -187,7 +187,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigateToLogin }) => {
         {/* Footer */}
         <footer className="border-t border-gray-800">
           <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 text-center">
-            <p className="text-gray-400">&copy; 2025 SparkX Project. All Rights Reserved.</p>
+            <p className="text-gray-400">&copy; 2025 Vitalroute Project. All Rights Reserved.</p>
             <p className="text-gray-500 mt-2">A Smart Solution for a Safer Tomorrow.</p>
           </div>
         </footer>
