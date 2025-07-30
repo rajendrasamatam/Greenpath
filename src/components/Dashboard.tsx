@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, Navigation, Clock, LogOut, User as UserIcon, Settings, Bell, ChevronDown, ChevronUp, Award } from 'lucide-react';
-import { useLoadScript } from '@react-google-maps/api'; // Import useLoadScript
+import { useLoadScript } from '@react-google-maps/api';
 
 import { auth } from '../firebase';
 import { signOut, User } from 'firebase/auth';
@@ -11,12 +11,9 @@ interface DashboardProps {
 }
 
 // Define libraries array outside the component to prevent re-renders
-const libraries: ("places")[] = ['places']; // 'places' library is needed for PlacesService
+const libraries: ("places")[] = ['places'];
 
 const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
-  // Access API key from environment variables (assuming it's set up in your project)
-  // In a real project, this would be `import.meta.env.VITE_REACT_APP_Maps_API_KEY;`
-  // For Canvas, we'll use the provided key directly.
   const apiKey = "AIzaSyB7eG4ZV8A2dNItIjFkRyGUact3IstWwdY"; // Directly using the provided key
 
   const { isLoaded, loadError } = useLoadScript({
@@ -28,9 +25,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [nearbyMultiSpecialtyHospitals, setNearbyMultiSpecialtyHospitals] = useState<any[]>([]);
-  const [selectedHospital, setSelectedHospital] = useState<any | null>(null); // To highlight active route
-  const [locationError, setLocationError] = useState<string | null>(null); // State for geolocation errors
-  const [hospitalFetchStatus, setHospitalFetchStatus] = useState<'loading' | 'success' | 'error' | 'empty'>('loading'); // Status for hospital fetching
+  const [selectedHospital, setSelectedHospital] = useState<any | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [hospitalFetchStatus, setHospitalFetchStatus] = useState<'loading' | 'success' | 'error' | 'empty'>('loading');
 
   const handleSignOut = async () => {
     try {
@@ -51,7 +48,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           };
           setCurrentLocation(location);
           setLastUpdate(new Date());
-          setLocationError(null); // Clear any previous errors
+          setLocationError(null);
         },
         (error) => {
           let errorMessage = `Location error: ${error.message}`;
@@ -65,7 +62,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           setLocationError(errorMessage);
           console.error("Geolocation error:", error);
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 } // High accuracy, 10s timeout, no cached position
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
       setLocationError("Geolocation is not supported by your browser.");
@@ -74,9 +71,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   // Effect for initial location fetch and continuous updates
   useEffect(() => {
-    getCurrentLocation(); // Fetch location immediately on component mount
+    getCurrentLocation();
 
-    // Set up continuous tracking using watchPosition
     let watchId: number | null = null;
     if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
@@ -101,13 +97,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       );
     }
 
-    // Cleanup function: clear watchPosition when component unmounts
     return () => {
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [getCurrentLocation]); // Depend on getCurrentLocation to re-run if it changes (though useCallback prevents this)
+  }, [getCurrentLocation]);
 
 
   const toggleUserDropdown = () => {
@@ -128,90 +123,81 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     };
   }, []);
 
-  // Function to fetch nearby hospitals using Google Places API
-  const fetchNearbyHospitals = useCallback(() => {
-    // Ensure Google Maps API and Places library are loaded, and we have a current location
-    if (!isLoaded || !currentLocation || !window.google || !window.google.maps.places) {
-      setHospitalFetchStatus('loading'); // Still loading if API not ready
-      return;
-    }
-    
-    setHospitalFetchStatus('loading');
-    // Create a dummy div element to pass to PlacesService constructor
-    const service = new window.google.maps.places.PlacesService(document.createElement('div'));
-    
-    const request: google.maps.places.PlaceSearchRequest = {
-      location: currentLocation,
-      radius: 15000, // Search within 15 km radius (15000 meters)
-      type: 'hospital', // Filter by hospitals
-      keyword: 'multi specialty hospital', // Refine search for multi specialty
+  // *** FIXED SECTION ***
+  // Effect to trigger hospital fetch when location is available and API is loaded.
+  // The fetching logic is now defined *inside* the effect to prevent re-creation on every render.
+  useEffect(() => {
+    const fetchNearbyHospitals = () => {
+      if (!isLoaded || !currentLocation || !window.google || !window.google.maps.places) {
+        setHospitalFetchStatus('loading');
+        return;
+      }
+      
+      setHospitalFetchStatus('loading');
+      const service = new window.google.maps.places.PlacesService(document.createElement('div'));
+      
+      const request: google.maps.places.PlaceSearchRequest = {
+        location: currentLocation,
+        radius: 15000, // 15 km radius
+        type: 'hospital',
+        keyword: 'multi specialty hospital',
+      };
+
+      service.nearbySearch(request, (results, status) => {
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
+          const hospitals = results.map((place) => ({
+            id: place.place_id,
+            name: place.name,
+            lat: place.geometry?.location?.lat(),
+            lng: place.geometry?.location?.lng(),
+            address: place.vicinity || 'Address not available',
+          })).filter(h => h.id && h.lat && h.lng);
+          
+          if (hospitals.length > 0) {
+              setNearbyMultiSpecialtyHospitals(hospitals);
+              setHospitalFetchStatus('success');
+          } else {
+              setNearbyMultiSpecialtyHospitals([]);
+              setHospitalFetchStatus('empty');
+          }
+        } else {
+          console.error(`Google Places search failed with status: ${status}`);
+          setNearbyMultiSpecialtyHospitals([]);
+          setHospitalFetchStatus('error');
+        }
+      });
     };
 
-    service.nearbySearch(request, (results, status) => {
-      if (status === window.google.maps.places.PlacesServiceStatus.OK && results) {
-        const hospitals = results.map((place) => ({
-          id: place.place_id,
-          name: place.name,
-          lat: place.geometry?.location?.lat(),
-          lng: place.geometry?.location?.lng(),
-          address: place.vicinity || 'Address not available',
-        })).filter(h => h.id && h.lat && h.lng); // Filter out results without valid ID or coordinates
-        
-        if (hospitals.length > 0) {
-            setNearbyMultiSpecialtyHospitals(hospitals);
-            setHospitalFetchStatus('success');
-        } else {
-            setNearbyMultiSpecialtyHospitals([]);
-            setHospitalFetchStatus('empty');
-        }
-      } else {
-        console.error(`Google Places search failed with status: ${status}`);
-        setNearbyMultiSpecialtyHospitals([]);
-        setHospitalFetchStatus('error');
-      }
-    });
-  }, [isLoaded, currentLocation]); // Re-run when API is loaded or location changes
-
-  // Effect to trigger hospital fetch when location is available and API is loaded
-  useEffect(() => {
     if (currentLocation && isLoaded) {
       fetchNearbyHospitals();
     }
-  }, [currentLocation, isLoaded, fetchNearbyHospitals]);
+  }, [currentLocation, isLoaded]); // This effect now only runs when location or API load status changes.
 
 
-  // Function to activate route and open Google Maps for navigation
   const handleNavigateToHospital = (hospital: any) => {
     if (currentLocation && hospital.lat && hospital.lng) {
       const origin = `${currentLocation.lat},${currentLocation.lng}`;
       const destination = `${hospital.lat},${hospital.lng}`;
-      // Construct Google Maps URL for directions
       const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
       
-      window.open(googleMapsUrl, '_blank'); // Open in a new tab
-      setSelectedHospital(hospital); // Highlight this hospital as the active route
+      window.open(googleMapsUrl, '_blank');
+      setSelectedHospital(hospital);
     } else {
       console.error("Cannot navigate: Current location or hospital destination is missing.");
-      // Optionally, provide user feedback (e.g., a toast notification)
     }
   };
 
-  // Display loading or error messages for Google Maps API
   if (loadError) return <div className="text-red-500 p-4 bg-black min-h-screen flex items-center justify-center">Error loading maps services. Please check your API key and network connection.</div>;
   if (!isLoaded) return <div className="flex items-center justify-center min-h-screen bg-black text-white">Loading map services...</div>;
 
   return (
     <div className="min-h-screen flex flex-col bg-black font-sans text-white relative overflow-hidden">
-      {/* Hero Glow Effect from Landing Page */}
       <div className="absolute inset-0 hero-glow opacity-40"></div>
-
-      {/* Header (Top Navigation) */}
+      
       <header className="relative z-20 w-full py-6 px-4 sm:px-6 lg:px-8 bg-gray-950 border-b border-gray-800">
         <div className="max-w-full mx-auto flex justify-between items-center">
-          {/* Left: SparkX Logo */}
-          <h1 className="text-2xl font-bold text-blue-500">🚨 SparkX</h1>
+          <h1 className="text-2xl font-bold text-blue-500">🚨 Vitalroute</h1>
           
-          {/* Right: User Profile and Dropdown */}
           <div className="flex items-center gap-4 user-dropdown-container">
             <Bell size={24} className="text-gray-400 cursor-pointer hover:text-white" />
             <div className="flex items-center gap-3 cursor-pointer" onClick={toggleUserDropdown}>
@@ -229,7 +215,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               {isUserDropdownOpen ? <ChevronUp size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
             </div>
 
-            {/* User Dropdown Menu */}
             {isUserDropdownOpen && (
               <div className="absolute right-4 top-full mt-2 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-xl py-2 z-30">
                 <a href="#" className="flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-gray-800">
@@ -251,12 +236,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         </div>
       </header>
 
-      {/* Main Content Area - Dashboard Body */}
       <main className="flex-1 p-6 flex flex-col overflow-y-auto relative z-10">
         <h1 className="text-3xl font-bold text-white mb-6">Driver Dashboard</h1>
         <p className="text-gray-400 text-lg mb-8">Essential real-time information for your current operation.</p>
 
-        {/* Info Cards - Simplified to 3 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-gray-900 rounded-xl shadow-lg p-6 flex items-center gap-4 border border-gray-800">
               <MapPin className="w-8 h-8 text-blue-400 flex-shrink-0" />
@@ -287,7 +270,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           </div>
         </div>
         
-        {/* Nearby Multi Specialty Hospitals List - Main content area */}
         <div className="bg-gray-900 rounded-xl shadow-lg p-6 h-full flex flex-col border border-gray-800">
           <div className="flex justify-between items-center mb-4 flex-shrink-0">
                 <h2 className="text-xl font-semibold text-white">Nearby Multi Specialty Hospitals</h2>
@@ -297,7 +279,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
               <strong>Location Error:</strong> {locationError}
             </div>
           )}
-          <div className="flex-1 overflow-y-auto pr-2 max-h-[calc(100vh-250px)] scroll-smooth"> {/* Adjusted max-height */}
+          <div className="flex-1 overflow-y-auto pr-2 max-h-[calc(100vh-250px)] scroll-smooth">
             {hospitalFetchStatus === 'loading' && (
               <p className="text-gray-500 px-2">Searching for hospitals within 15km...</p>
             )}
