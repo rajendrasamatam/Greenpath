@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, Navigation, Clock, LogOut, User as UserIcon, Settings, Bell, ChevronDown, ChevronUp, Award } from 'lucide-react';
 import { useLoadScript } from '@react-google-maps/api';
 
@@ -37,44 +37,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
       console.error("Error signing out: ", error);
     }
   };
-  
-  const getCurrentLocation = useCallback(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setCurrentLocation(location);
-          setLastUpdate(new Date());
-          setLocationError(null);
-        },
-        (error) => {
-          let errorMessage = `Location error: ${error.message}`;
-          if (error.code === error.PERMISSION_DENIED) {
-            errorMessage = "Location access denied. Please enable location services in your browser settings.";
-          } else if (error.code === error.POSITION_UNAVAILABLE) {
-            errorMessage = "Location information is unavailable.";
-          } else if (error.code === error.TIMEOUT) {
-            errorMessage = "The request to get user location timed out.";
-          }
-          setLocationError(errorMessage);
-          console.error("Geolocation error:", error);
-        },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-      );
-    } else {
-      setLocationError("Geolocation is not supported by your browser.");
-    }
-  }, []);
 
-  // Effect for initial location fetch and continuous updates
+  // *** FIXED SECTION ***
+  // This single useEffect handles all location tracking.
+  // It runs ONLY ONCE when the component mounts.
   useEffect(() => {
-    getCurrentLocation();
-
     let watchId: number | null = null;
+
     if (navigator.geolocation) {
+      // watchPosition gets the initial location and then continues to track changes.
       watchId = navigator.geolocation.watchPosition(
         (position) => {
           const location = {
@@ -83,27 +54,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           };
           setCurrentLocation(location);
           setLastUpdate(new Date());
-          setLocationError(null);
+          setLocationError(null); // Clear previous errors on success
         },
         (error) => {
-          let errorMessage = `Location tracking error: ${error.message}`;
+          let errorMessage = `Location Error: ${error.message}`;
           if (error.code === error.PERMISSION_DENIED) {
-            errorMessage = "Location access denied for continuous tracking.";
+            errorMessage = "Location access denied. Please enable it in your browser settings.";
           }
           setLocationError(errorMessage);
           console.error("Geolocation watch error:", error);
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
+    } else {
+      setLocationError("Geolocation is not supported by your browser.");
     }
 
+    // Cleanup function: This runs when the component unmounts to prevent memory leaks.
     return () => {
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [getCurrentLocation]);
-
+  }, []); // <-- Empty dependency array ensures this effect runs only once.
 
   const toggleUserDropdown = () => {
     setIsUserDropdownOpen((prev) => !prev);
@@ -123,9 +96,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     };
   }, []);
 
-  // *** FIXED SECTION ***
   // Effect to trigger hospital fetch when location is available and API is loaded.
-  // The fetching logic is now defined *inside* the effect to prevent re-creation on every render.
   useEffect(() => {
     const fetchNearbyHospitals = () => {
       if (!isLoaded || !currentLocation || !window.google || !window.google.maps.places) {
@@ -171,7 +142,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     if (currentLocation && isLoaded) {
       fetchNearbyHospitals();
     }
-  }, [currentLocation, isLoaded]); // This effect now only runs when location or API load status changes.
+  }, [currentLocation, isLoaded]); // This effect now correctly runs only when location or API load status changes.
 
 
   const handleNavigateToHospital = (hospital: any) => {
@@ -188,7 +159,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   };
 
   if (loadError) return <div className="text-red-500 p-4 bg-black min-h-screen flex items-center justify-center">Error loading maps services. Please check your API key and network connection.</div>;
-  if (!isLoaded) return <div className="flex items-center justify-center min-h-screen bg-black text-white">Loading map services...</div>;
+  if (!isLoaded && !locationError) return <div className="flex items-center justify-center min-h-screen bg-black text-white">Loading map services...</div>;
 
   return (
     <div className="min-h-screen flex flex-col bg-black font-sans text-white relative overflow-hidden">
@@ -246,7 +217,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
             <div>
               <h3 className="font-semibold text-gray-400">Current Location</h3>
               <p className="text-lg font-bold text-white">
-                {currentLocation ? `${currentLocation.lat.toFixed(3)}, ${currentLocation.lng.toFixed(3)}` : 'N/A'}
+                {currentLocation ? `${currentLocation.lat.toFixed(3)}, ${currentLocation.lng.toFixed(3)}` : 'Acquiring...'}
               </p>
             </div>
           </div>
@@ -272,24 +243,24 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
         
         <div className="bg-gray-900 rounded-xl shadow-lg p-6 h-full flex flex-col border border-gray-800">
           <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                <h2 className="text-xl font-semibold text-white">Nearby Multi Specialty Hospitals</h2>
+              <h2 className="text-xl font-semibold text-white">Nearby Multi Specialty Hospitals</h2>
           </div>
           {locationError && (
             <div className="bg-red-900/20 border border-red-700 text-red-400 px-4 py-3 rounded-lg mb-4">
-              <strong>Location Error:</strong> {locationError}
+              <strong>{locationError}</strong>
             </div>
           )}
           <div className="flex-1 overflow-y-auto pr-2 max-h-[calc(100vh-250px)] scroll-smooth">
-            {hospitalFetchStatus === 'loading' && (
+            {hospitalFetchStatus === 'loading' && !locationError && (
               <p className="text-gray-500 px-2">Searching for hospitals within 15km...</p>
             )}
             {hospitalFetchStatus === 'empty' && (
               <p className="text-gray-500 px-2">No multi specialty hospitals found within 15km.</p>
             )}
             {hospitalFetchStatus === 'error' && (
-              <p className="text-red-500 px-2">Error fetching hospitals. Please try again.</p>
+              <p className="text-red-500 px-2">Error fetching hospitals. The service may be temporarily unavailable.</p>
             )}
-            {hospitalFetchStatus === 'success' && nearbyMultiSpecialtyHospitals.length > 0 ? (
+            {hospitalFetchStatus === 'success' && nearbyMultiSpecialtyHospitals.length > 0 && (
               nearbyMultiSpecialtyHospitals.map((hospital) => (
                 <div
                   key={hospital.id}
@@ -301,18 +272,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   </div>
                   <button
                     onClick={() => handleNavigateToHospital(hospital)}
-                    className="ml-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-300"
+                    className="ml-4 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors duration-300 flex-shrink-0"
                   >
                     Navigate
                   </button>
                 </div>
               ))
-            ) : (
-              hospitalFetchStatus === 'success' && <p className="text-gray-500 px-2">No nearby multi specialty hospitals found.</p>
             )}
           </div>
         </div>
-
       </main>
     </div>
   );
