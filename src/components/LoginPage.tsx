@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-// Import 'auth' from your centralized Firebase configuration file
-// Assuming '../firebase' exports the initialized 'auth' instance
-import { auth } from '../firebase'; 
+import { auth } from '../firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
-// Define the props for the component
 interface LoginPageProps {
   onLoginSuccess: () => void;
-  onNavigateToSignUp: () => void; // Function to switch to the sign-up page
+  onNavigateToSignUp: () => void;
+  onNavigateToLanding: () => void; // 🔹 New prop for going back to landing
 }
 
-const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToSignUp }) => {
+const LoginPage: React.FC<LoginPageProps> = ({
+  onLoginSuccess,
+  onNavigateToSignUp,
+  onNavigateToLanding
+}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,19 +24,16 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToSignU
     setLoading(true);
 
     try {
-      // Attempt to sign in with email and password using Firebase Auth
-      // 'auth' is now imported from '../firebase', which should handle its initialization
       await signInWithEmailAndPassword(auth, email, password);
       console.log('Login successful!');
-      onLoginSuccess(); // Call the success callback passed from parent
+      onLoginSuccess();
     } catch (err: any) {
-      // Handle Firebase authentication errors
       let errorMessage = 'An unexpected error occurred. Please try again.';
       if (err.code) {
         switch (err.code) {
           case 'auth/user-not-found':
           case 'auth/wrong-password':
-          case 'auth/invalid-credential': // More generic for incorrect email/password
+          case 'auth/invalid-credential':
             errorMessage = 'Invalid email or password.';
             break;
           case 'auth/invalid-email':
@@ -50,15 +49,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToSignU
       console.error('Login error:', err);
       setError(errorMessage);
     } finally {
-      setLoading(false); // Always stop loading, regardless of success or failure
+      setLoading(false);
     }
   };
 
   return (
-    <div className="relative flex items-center justify-center min-h-screen bg-black overflow-hidden" style={{ backgroundColor: '#000000' }}>
-      {/* Re-using the hero glow effect from the landing page for theme consistency */}
+    <div
+      className="relative flex items-center justify-center min-h-screen bg-black overflow-hidden"
+      style={{ backgroundColor: '#000000' }}
+    >
       <div className="absolute inset-0 hero-glow opacity-40"></div>
-      
+
       <div className="relative z-10 w-full max-w-md p-8 space-y-8 border border-gray-800 bg-gray-900/50 backdrop-blur-sm rounded-2xl shadow-lg">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-white">
@@ -68,8 +69,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToSignU
         </div>
 
         <form className="space-y-6" onSubmit={handleLogin}>
-          {error && <p className="text-red-400 text-center bg-red-500/10 p-3 rounded-lg">{error}</p>}
-          
+          {error && (
+            <p className="text-red-400 text-center bg-red-500/10 p-3 rounded-lg">
+              {error}
+            </p>
+          )}
+
           <div className="relative">
             <input
               type="email"
@@ -80,7 +85,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToSignU
               required
             />
           </div>
-          
+
           <div className="relative">
             <input
               type="password"
@@ -91,7 +96,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToSignU
               required
             />
           </div>
-          
+
           <button
             type="submit"
             disabled={loading}
@@ -101,16 +106,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onNavigateToSignU
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-400">
-          Don't have an account?{' '}
-          <button 
-            type="button" 
-            onClick={onNavigateToSignUp} 
-            className="font-semibold text-blue-400 hover:text-blue-300 focus:outline-none"
+        <div className="flex justify-between items-center text-sm text-gray-400 mt-4">
+          <button
+            type="button"
+            onClick={onNavigateToLanding} // 🔹 Back to landing
+            className="font-semibold text-gray-400 hover:text-gray-200"
+          >
+            ← Back to Home
+          </button>
+
+          <button
+            type="button"
+            onClick={onNavigateToSignUp}
+            className="font-semibold text-blue-400 hover:text-blue-300"
           >
             Sign Up
           </button>
-        </p>
+        </div>
       </div>
     </div>
   );
